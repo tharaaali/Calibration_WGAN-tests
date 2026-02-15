@@ -166,6 +166,8 @@ class AgingFactorGenerator:
         out["aging_factor"] = af
         out["E_new"] = out[e_col]
         out["E_old"] = out["E_new"] * out["aging_factor"]
+        # mask_old = out["E_old"] < 200
+        # out.loc[mask_old, "E_old"] = np.nan
         return out
 
     def sample_events(self, df: pd.DataFrame, *, n_events: Optional[int] = None, seed: Optional[int] = None) -> pd.DataFrame:
