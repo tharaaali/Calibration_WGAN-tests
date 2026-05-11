@@ -24,7 +24,7 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     """Дискриминатор WGAN на сверточных блоках."""
 
-    def __init__(self, in_dim: int, dim: int = 64):
+    def __init__(self, in_dim: int, dim: int = 64, final_pool: str = "max"):
         super().__init__()
 
         def block(inp, out):
@@ -34,6 +34,15 @@ class Discriminator(nn.Module):
                 nn.LeakyReLU(0.2),
             )
 
+        if final_pool == "max":
+            pool = nn.AdaptiveMaxPool2d(1)
+        elif final_pool == "mean":
+            pool = nn.AdaptiveAvgPool2d(1)
+        else:
+            raise ValueError(
+                f"Unknown final_pool={final_pool!r}, expected 'max' or 'mean'"
+            )
+
         self.net = nn.Sequential(
             nn.Conv2d(in_dim, dim, 3, padding=1),
             nn.LeakyReLU(0.2),
@@ -41,7 +50,7 @@ class Discriminator(nn.Module):
             block(dim * 2, dim * 2),
             block(dim * 2, dim),
             nn.Conv2d(dim, 1, 4),
-            nn.AdaptiveMaxPool2d(1),
+            pool,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

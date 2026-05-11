@@ -54,6 +54,27 @@ class CaloEventDataset(Dataset):
         return {"E_new": e_new, "E_old": e_old, "mask": mask}
 
 
+class PairedCaloEventDataset(Dataset):
+    """Комбинирует два датасета: из первого берёт `E_new`, из второго — `E_old`.
+
+    Это нужно, чтобы можно было использовать независимые сэмплы событий для "new" и "old",
+    но при этом сохранить интерфейс датасета для train_loop (поля `E_new` и `E_old`).
+    """
+
+    def __init__(self, ds_new: Dataset, ds_old: Dataset):
+        self.ds_new = ds_new
+        self.ds_old = ds_old
+        self._len = min(len(ds_new), len(ds_old))
+
+    def __len__(self):
+        return self._len
+
+    def __getitem__(self, idx):
+        item_new = self.ds_new[idx]
+        item_old = self.ds_old[idx]
+        return {"E_new": item_new["E_new"], "E_old": item_old["E_old"]}
+
+
 def build_real_aging_tensor(
     df: pd.DataFrame,
     x_map: dict,

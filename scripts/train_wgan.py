@@ -37,25 +37,32 @@ def main():
         default=None,
         help="Название общего запуска для группировки результатов",
     )
+    parser.add_argument(
+        "--config-name",
+        type=str,
+        default=None,
+        help="Название конфига (для создания поддиректорий)",
+    )
     args = parser.parse_args()
     
     with open(args.config, "r") as file:
         config = yaml.safe_load(file)
-
+    
     experiment_name = args.experiment or datetime.now().strftime("wgan_%Y%m%d_%H%M%S")
     run_name = args.run_name or datetime.now().strftime("run_%Y%m%d_%H%M%S")
+    config_name = args.config_name or Path(args.config).stem
     base_dir = Path(config.get("results_dir", "results")).parent
-    logs_dir = base_dir / config.get("wgan_params", {}).get("logs_dir", "logs") / run_name / experiment_name
-    logger = setup_logging(logs_dir, experiment_name)
+    logs_dir = base_dir / config.get("wgan_params", {}).get("logs_dir", "logs") / run_name / experiment_name / config_name
+    logger = setup_logging(logs_dir, config_name)
     
     logger.info("=" * 60)
-    logger.info(f"WGAN Training - {experiment_name}")
+    logger.info(f"WGAN Training - {experiment_name} / {config_name}")
     logger.info(f"Run name: {run_name}")
     logger.info("=" * 60)
     logger.info(f"Конфиг: {args.config}")
     
     try:
-        train_wgan(config, logger, experiment_name, run_name)
+        train_wgan(config, logger, experiment_name, run_name, config_name)
         logger.info("Обучение успешно завершено")
         return 0
     except Exception as error:

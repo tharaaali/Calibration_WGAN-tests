@@ -11,7 +11,9 @@ class AgingFactorGenerator:
         aging_function: str = "xyz",
         af_min: float = 0.8,
         af_max: float = 1.0,
+        add_noise: bool = False,
         sigma: float = 0.0,
+        noise_clamp_method: str = "clip",
         noise_seed: Optional[int] = None,
         event_col: str = "event",
         x_col: str = "x",
@@ -26,11 +28,19 @@ class AgingFactorGenerator:
         lambda_z: float = 0.20,
         eta: float = 2.0
     ) -> None:
-        """Инициализация параметров генерации AF и выборки событий."""
+        """Инициализация параметров генерации AF и выборки событий.
+
+        noise_clamp_method:
+            'clip'      — клипание к [af_min, af_max]
+            'normalize' — линейное масштабирование зашумлённого массива в [af_min, af_max]
+            'truncate'  — усечённое нормальное: повторная выборка значений вне диапазона
+        """
         self.aging_function = aging_function
         self.af_min = af_min
         self.af_max = af_max
+        self.add_noise = add_noise
         self.sigma = sigma
+        self.noise_clamp_method = noise_clamp_method
         self.noise_seed = noise_seed
         self.event_col = event_col
         self.x_col = x_col
@@ -149,6 +159,31 @@ class AgingFactorGenerator:
         mapping = scale.to_dict()
         return key.map(mapping)
 
+    def _apply_noise(self, base: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+        """Добавляет гауссовский шум и приводит результат к [af_min, af_max] выбранным методом."""
+        noisy = base + self.sigma * rng.normal(size=len(base))
+        method = self.noise_clamp_method
+
+        if method == "clip":
+            return np.clip(noisy, self.af_min, self.af_max)
+
+        if method == "normalize":
+            lo, hi = noisy.min(), noisy.max()
+            if hi == lo:
+                return np.full_like(noisy, (self.af_min + self.af_max) / 2.0)
+            return self.af_min + (self.af_max - self.af_min) * (noisy - lo) / (hi - lo)
+
+        if method == "truncate":
+            result = noisy.copy()
+            out_mask = (result < self.af_min) | (result > self.af_max)
+            while out_mask.any():
+                n_bad = out_mask.sum()
+                result[out_mask] = base[out_mask] + self.sigma * rng.normal(size=n_bad)
+                out_mask = (result < self.af_min) | (result > self.af_max)
+            return result
+
+        raise ValueError(f"Неизвестный noise_clamp_method: '{method}'. Допустимые: clip, normalize, truncate")
+
     def generate(self, df: pd.DataFrame) -> pd.DataFrame:
         """Генерирует коэффициенты старения и энергии E_new/E_old."""
         x_col = self.x_col
@@ -158,9 +193,12 @@ class AgingFactorGenerator:
         key = self._cell_index(df, x_col, y_col, z_col)
         method = self._methods.get(self.aging_function, self._base_xyz)
         base_unit = method(df, x_col, y_col, z_col, key)
-        base = self.af_min + (self.af_max - self.af_min) * base_unit.clip(0.0, 1.0)
-        rng = np.random.default_rng(self.noise_seed)
-        af = np.clip(base + self.sigma * rng.normal(size=len(df)), self.af_min, self.af_max)
+        base = (self.af_min + (self.af_max - self.af_min) * base_unit.clip(0.0, 1.0)).to_numpy()
+        if self.add_noise and self.sigma > 0.0:
+            rng = np.random.default_rng(self.noise_seed)
+            af = self._apply_noise(base, rng)
+        else:
+            af = base
         out = df.copy()
         out["cell_key"] = key
         out["aging_factor"] = af
