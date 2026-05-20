@@ -7,9 +7,7 @@ WGAN для калибровки калориметра: оценка коэфф
 ```
 .
 ├── configs/
-│   ├── config.yaml              # базовый конфиг (модель, данные, WGAN, графики)
-│   └── generated/               # наборы конфигов под отдельные эксперименты
-│       └── <experiment>/config_*.yaml
+│   └── config.yaml              # базовый конфиг (модель, данные, WGAN, графики)
 ├── scripts/
 │   ├── train_wgan.py            # точка входа для обучения WGAN
 │   ├── plot_graphics.py         # генерация графиков по данным
@@ -21,15 +19,10 @@ WGAN для калибровки калориметра: оценка коэфф
 │       ├── train_utils.py       # логирование, сохранение чекпоинтов
 │       └── plots.py             # графики тренировок (loss, true vs pred и т.п.)
 ├── notebooks/
-│   ├── models.ipynb             # эксперименты и анализ бейзлайн моделей
-│   ├── compare_runs_metrics.ipynb  # сравнение метрик между запусками
-│   └── generate_configs.ipynb   # генерация наборов конфигов для серий экспериментов
-├── models.ipynb                 # ноутбук верхнего уровня
-├── run_training.sh              # SLURM-скрипт (sbatch array) для запуска серии
-├── results/                     # выгрузки запусков: предсказания, кривые, гистограммы
-├── data/                        # входные данные (gitignored)
-├── logs/, models/, task-logs/   # логи и чекпоинты (gitignored)
-└── .cometml-runs/               # локальные кэши Comet ML (gitignored)
+│   ├── baseline_models.ipynb        # базовые методы оценки коэффициентов (mean, median, Wasserstein)
+│   ├── compare_runs_metrics.ipynb   # сравнение метрик между запусками WGAN
+│   └── generate_configs.ipynb       # генерация наборов конфигов для серий экспериментов
+└── run_training.sh              # SLURM-скрипт (sbatch array) для запуска серии
 ```
 
 ## Запуск
@@ -50,6 +43,8 @@ python scripts/train_wgan.py \
 sbatch --array=1-N run_training.sh <run_name> <experiment>
 ```
 
+Конфиги для серий генерируются ноутбуком `notebooks/generate_configs.ipynb`.
+
 ## Конфиг
 
 Ключевые секции `configs/config.yaml`:
@@ -60,8 +55,6 @@ sbatch --array=1-N run_training.sh <run_name> <experiment>
 - `wgan_params` — гиперпараметры WGAN: `batch_size`, `epochs`, `lr_g`/`lr_d`, `n_critic`, `gp_lambda`, scheduler, energy mask/cuts, фильтр по геометрии.
 - `plots` — параметры графиков (бины, квантили, размеры, имена файлов).
 
-Серии конфигов под отдельные эксперименты лежат в `configs/generated/<experiment>/` и собираются ноутбуком `notebooks/generate_configs.ipynb`.
-
 ## Результаты
 
 Каждый запуск сохраняет в `results/<run_name>/<experiment>/<config>/`:
@@ -70,4 +63,4 @@ sbatch --array=1-N run_training.sh <run_name> <experiment>
 - `wgan_training_history.csv` — история loss/метрик по эпохам,
 - `wgan_training_curves.png`, `wgan_true_vs_predicted.png`, `wgan_error_histogram.png` — графики.
 
-Сравнение метрик между запусками — `notebooks/compare_runs_metrics.ipynb`.
+Сравнение метрик между запусками — `notebooks/compare_runs_metrics.ipynb`; базовые методы оценки коэффициентов (среднее, медиана, прямая минимизация расстояния Вассерштейна) — `notebooks/baseline_models.ipynb`.

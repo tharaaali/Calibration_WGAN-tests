@@ -17,3 +17,6 @@ id_ed25519.pub
 *.key
 /*.png
 .cometml-runs/
+configs/generated/
+results/
+**/.ipynb_checkpoints/

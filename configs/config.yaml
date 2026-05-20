@@ -108,9 +108,9 @@ wgan_params:
     final_pool: max
 
   filter:
-    x_range: [-20, 20]
-    y_range: [-20, 20]
-    z_range: [-100, -90]
+    x_range: [-34.5, 34.5]
+    y_range: [-34.5, 34.5]
+    z_range: [-116.4875, -46.4735]
 
   logs_dir: logs
   models_dir: models
